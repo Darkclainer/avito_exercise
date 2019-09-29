@@ -10,7 +10,7 @@ import (
 
 var schema = `
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
+    id INTEGER NOT NULL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     created_at DATETIME NOT NULL
 );
