@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql/driver"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,22 +11,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
-
-type AfterTime struct {
-	created time.Time
-}
-
-func (after AfterTime) Match(value driver.Value) bool {
-	timeValue, ok := value.(time.Time)
-	if !ok {
-		return false
-	}
-
-	if timeValue.Before(after.created) || timeValue.After(time.Now()) {
-		return false
-	}
-	return true
-}
 
 func TestHandleUserAdd(t *testing.T) {
 	type TestCase struct {
@@ -47,7 +30,7 @@ func TestHandleUserAdd(t *testing.T) {
 			ReturnedId:     1,
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 				mock.ExpectExec("INSERT INTO users").
-					WithArgs("user_1", AfterTime{time.Now()}).
+					WithArgs("user_1", MatchTime{Start: time.Now()}).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
