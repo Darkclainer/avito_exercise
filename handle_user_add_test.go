@@ -14,57 +14,57 @@ import (
 
 func TestHandleUserAdd(t *testing.T) {
 	type TestCase struct {
-		Name           string
-		RequestPayload string
-		Code           int
-		ErrorMsg       string
-		ReturnedId     int
-		SetupMock      func(mock sqlmock.Sqlmock, testCase *TestCase)
+		TestName           string
+		RequestBody        string
+		ExpectedStatusCode int
+		ExpectedErrorMsg   string
+		MockReturnId       int64
+		SetupMock          func(mock sqlmock.Sqlmock, testCase *TestCase)
 	}
 
-	subtestCases := []*TestCase{
+	testCases := []*TestCase{
 		&TestCase{
-			Name:           "SimpleAdd",
-			RequestPayload: `{"username": "user_1"}`,
-			Code:           http.StatusOK,
-			ReturnedId:     1,
+			TestName:           "SimpleAdd",
+			RequestBody:        `{"username": "user_1"}`,
+			ExpectedStatusCode: http.StatusOK,
+			MockReturnId:       1,
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 				mock.ExpectExec("INSERT INTO users").
 					WithArgs("user_1", MatchTime{Start: time.Now()}).
-					WillReturnResult(sqlmock.NewResult(1, 1))
+					WillReturnResult(sqlmock.NewResult(testCase.MockReturnId, 1))
 			},
 		},
 		&TestCase{
-			Name:           "Error request format",
-			RequestPayload: `{"username": "user_1"`,
-			Code:           http.StatusInternalServerError,
-			ErrorMsg:       "json decoding error",
+			TestName:           "Error request format",
+			RequestBody:        `{"username": "user_1"`,
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedErrorMsg:   "json decoding error",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 			},
 		},
 		&TestCase{
-			Name:           "Add user with duplicate username",
-			RequestPayload: `{"username": "user_1"}`,
-			Code:           http.StatusInternalServerError,
-			ErrorMsg:       "User with this username is already added",
+			TestName:           "Add user with duplicate username",
+			RequestBody:        `{"username": "user_1"}`,
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedErrorMsg:   "User with this username is already added",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 				rows := sqlmock.NewRows([]string{"username"}).AddRow("user_1")
 				mock.ExpectQuery("SELECT").WillReturnRows(rows)
 			},
 		},
 		&TestCase{
-			Name:           "Incorrect username",
-			RequestPayload: `{"username": "1_user"}`,
-			Code:           http.StatusInternalServerError,
-			ErrorMsg:       "Username is in unsupported format",
+			TestName:           "Incorrect username",
+			RequestBody:        `{"username": "1_user"}`,
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedErrorMsg:   "Username is in unsupported format",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 			},
 		},
 		&TestCase{
-			Name:           "Too long username",
-			RequestPayload: `{"username": "u234567890123456789012345679012345"}`,
-			Code:           http.StatusInternalServerError,
-			ErrorMsg:       "Username is in unsupported format",
+			TestName:           "Too long username",
+			RequestBody:        `{"username": "u234567890123456789012345679012345"}`,
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedErrorMsg:   "Username is in unsupported format",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 			},
 		},
@@ -72,11 +72,11 @@ func TestHandleUserAdd(t *testing.T) {
 	server := NewServer(nil, nil, true)
 
 	type Responce struct {
-		Id    int    `json:id`
+		Id    int64  `json:id`
 		Error string `json:error`
 	}
-	for _, subtest := range subtestCases {
-		t.Run(subtest.Name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.TestName, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatal("Can not create stub database connection: ", err)
@@ -84,25 +84,25 @@ func TestHandleUserAdd(t *testing.T) {
 			defer db.Close()
 			server.DB = ServerDB{db}
 
-			requestData := strings.NewReader(subtest.RequestPayload)
+			requestData := strings.NewReader(testCase.RequestBody)
 			request, err := http.NewRequest(http.MethodPost, "/users/add", requestData)
 			if err != nil {
 				t.Fatal(err)
 			}
 			recorder := httptest.NewRecorder()
 
-			subtest.SetupMock(mock, subtest)
+			testCase.SetupMock(mock, testCase)
 
 			handler := server.handleUserAdd()
 			handler.ServeHTTP(recorder, request)
 
 			assert.NoError(t, mock.ExpectationsWereMet())
-			assert.Equal(t, subtest.Code, recorder.Code)
+			assert.Equal(t, testCase.ExpectedStatusCode, recorder.Code)
 
 			var responce Responce
 			if assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &responce)) {
-				assert.Equal(t, subtest.ReturnedId, responce.Id)
-				assert.Equal(t, subtest.ErrorMsg, responce.Error)
+				assert.Equal(t, testCase.MockReturnId, responce.Id)
+				assert.Equal(t, testCase.ExpectedErrorMsg, responce.Error)
 			}
 		})
 	}
