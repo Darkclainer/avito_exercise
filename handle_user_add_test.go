@@ -30,7 +30,6 @@ func (after AfterTime) Match(value driver.Value) bool {
 }
 
 func TestHandleUserAdd(t *testing.T) {
-	// create server with mocked db connection
 	type TestCase struct {
 		Name           string
 		RequestPayload string
@@ -102,7 +101,6 @@ func TestHandleUserAdd(t *testing.T) {
 			defer db.Close()
 			server.DB = ServerDB{db}
 
-			// create request and response
 			requestData := strings.NewReader(subtest.RequestPayload)
 			request, err := http.NewRequest(http.MethodPost, "/users/add", requestData)
 			if err != nil {
@@ -110,7 +108,6 @@ func TestHandleUserAdd(t *testing.T) {
 			}
 			recorder := httptest.NewRecorder()
 
-			// our expected query to sql
 			subtest.SetupMock(mock, subtest)
 
 			handler := server.handleUserAdd()

@@ -5,6 +5,13 @@ import (
 	"regexp"
 )
 
+/* handleUserAdd return handle that andd new user on POST method
+
+Request body must be json dictionary with field "username" and value string.
+Valid username must start with ASCII letter and continue with letter, number or underscore.
+Maximum length is 32 characters.
+Handler return id of new user or error msg.
+*/
 func (s *Server) handleUserAdd() http.HandlerFunc {
 	type Request struct {
 		Username string `json:username`

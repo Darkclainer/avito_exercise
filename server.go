@@ -49,6 +49,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
+// respond send respond with json data and log if there is any error whyle encoding
 func (s *Server) respond(w http.ResponseWriter, r *http.Request, data interface{}, status int) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
@@ -64,6 +65,7 @@ func (s *Server) respond(w http.ResponseWriter, r *http.Request, data interface{
 	}
 }
 
+// decode unmarshal json value from request body and respond with error if there is formating issues
 func (s *Server) decode(w http.ResponseWriter, r *http.Request, value interface{}) error {
 	err := json.NewDecoder(r.Body).Decode(value)
 	if err != nil {
@@ -72,6 +74,9 @@ func (s *Server) decode(w http.ResponseWriter, r *http.Request, value interface{
 	return err
 }
 
+// respondError makes json respond with "error" field and specified msg and log it
+//
+// Also it set status code to http.StatusInternalServerError
 func (s *Server) respondError(w http.ResponseWriter, r *http.Request, msg string, err error) {
 	logger := s.getRequestLogger(r)
 	logger.WithField("error", err).Debug("Server responded with error")
@@ -79,6 +84,10 @@ func (s *Server) respondError(w http.ResponseWriter, r *http.Request, msg string
 	msgValue := map[string]string{"error": msg}
 	s.respond(w, r, msgValue, http.StatusInternalServerError)
 }
+
+// respondInternalError makes json respond with "error" field with default msg but log spicified msg
+//
+// Also it set status code to http.StatusInternalServerError
 func (s *Server) respondInternalError(w http.ResponseWriter, r *http.Request, msg string, err error) {
 	logger := s.getRequestLogger(r)
 	logger.WithField("error", err).Error("Server responded with internal error")
