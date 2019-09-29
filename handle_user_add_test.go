@@ -87,7 +87,7 @@ func TestHandleUserAdd(t *testing.T) {
 			},
 		},
 	}
-	server := NewServer(true)
+	server := NewServer(nil, nil, true)
 
 	type Responce struct {
 		Id    int    `json:id`

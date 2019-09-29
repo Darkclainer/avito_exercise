@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"database/sql"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -13,21 +13,25 @@ type Server struct {
 	router    *mux.Router
 	Logger    *logrus.Logger
 	DB        ServerDB
-	IsTesting bool
+	isTesting bool
 }
 
-func NewServer(isTesting bool) *Server {
+func NewServer(db *sql.DB, logger *logrus.Logger, isTesting bool) *Server {
 	s := &Server{
 		router:    mux.NewRouter(),
-		IsTesting: isTesting,
+		Logger:    logger,
+		DB:        ServerDB{db},
+		isTesting: isTesting,
 	}
-	s.routes()
-	s.Logger = logrus.New()
+	if logger == nil {
+		s.Logger = logrus.New()
+	}
 	if isTesting {
 		s.Logger.Level = logrus.ErrorLevel
 	} else {
 		s.Logger.Level = logrus.DebugLevel
 	}
+	s.routes()
 	return s
 }
 
