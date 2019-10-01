@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 )
 
 /* handleUserAdd return handle that andd new user on POST method
@@ -15,22 +14,17 @@ Handler return id of new user or error msg.
 */
 func (s *Server) handleUserAdd() http.HandlerFunc {
 	type Request struct {
-		Username string `json:username`
+		Username string `json:"username" validate:"username"`
 	}
 	type Responce struct {
 		Id int64 `json:id`
 	}
-	validUsername := regexp.MustCompile(`^[a-zA-Z]\w{0,31}$`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request Request
-		if err := s.decode(w, r, &request); err != nil {
+		if err := s.decodeAndValidate(w, r, &request); err != nil {
 			return
 		}
 		logger := s.getLogger(r).WithField("username", request.Username)
-		if !validUsername.MatchString(request.Username) {
-			s.respondWithError(w, r, logger, "Username is in unsupported format")
-			return
-		}
 		if isSameUser, _ := s.DB.IsUserExists(request.Username); isSameUser {
 			s.respondWithError(w, r, logger, "User with this username is already added")
 			return

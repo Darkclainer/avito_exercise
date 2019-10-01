@@ -7,12 +7,14 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 type Server struct {
 	router    *mux.Router
 	Logger    *logrus.Logger
 	DB        ServerDB
+	validate  *validator.Validate
 	isTesting bool
 }
 
@@ -32,6 +34,7 @@ func NewServer(db *sql.DB, logger *logrus.Logger, isTesting bool) *Server {
 		s.Logger.Level = logrus.DebugLevel
 	}
 	s.routes()
+	s.validate = NewValidate()
 	return s
 }
 
@@ -71,6 +74,31 @@ func (s *Server) decode(w http.ResponseWriter, r *http.Request, value interface{
 		s.respondWithError(w, r, s.getLogger(r).WithField("error", err), "json decoding error")
 	}
 	return err
+}
+
+// decodeAndValidate unmarshal json value and validate it. It reports of errors to client if there is one.
+func (s *Server) decodeAndValidate(w http.ResponseWriter, r *http.Request, value interface{}) error {
+	if err := s.decode(w, r, value); err != nil {
+		return err
+	}
+	err := s.validate.Struct(value)
+	if err != nil {
+		if _, ok := err.(*validator.InvalidValidationError); ok {
+			s.respondWithInternalError(w, r, s.getLogger(r).WithField("error", err))
+			return err
+		}
+		logger := s.getLogger(r)
+		for _, err := range err.(validator.ValidationErrors) {
+			logger.WithFields(logrus.Fields{
+				"tag":   err.ActualTag(),
+				"field": err.StructNamespace(),
+				"value": err.Value(),
+			}).Debug("Error while validating")
+		}
+		s.respondWithError(w, r, logger, "invalid input")
+		return err
+	}
+	return nil
 }
 
 // respondWithError responds with "error" field and specified msg and log it

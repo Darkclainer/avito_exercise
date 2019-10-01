@@ -56,7 +56,7 @@ func TestHandleUserAdd(t *testing.T) {
 			TestName:           "Incorrect username",
 			RequestBody:        `{"username": "1_user"}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedErrorMsg:   "Username is in unsupported format",
+			ExpectedErrorMsg:   "invalid input",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 			},
 		},
@@ -64,7 +64,7 @@ func TestHandleUserAdd(t *testing.T) {
 			TestName:           "Too long username",
 			RequestBody:        `{"username": "u234567890123456789012345679012345"}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedErrorMsg:   "Username is in unsupported format",
+			ExpectedErrorMsg:   "invalid input",
 			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
 			},
 		},
