@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 )
@@ -25,22 +26,25 @@ func (s *Server) handleUserAdd() http.HandlerFunc {
 		if err := s.decode(w, r, &request); err != nil {
 			return
 		}
+		logger := s.getLogger(r).WithField("username", request.Username)
 		if !validUsername.MatchString(request.Username) {
-			s.respondError(w, r, "Username is in unsupported format", nil)
+			s.respondWithError(w, r, logger, "Username is in unsupported format")
 			return
 		}
 		if isSameUser, _ := s.DB.IsUserExists(request.Username); isSameUser {
-			s.respondError(w, r, "User with this username is already added", nil)
+			s.respondWithError(w, r, logger, "User with this username is already added")
 			return
 		}
 		result, err := s.DB.AddUser(request.Username)
 		if err != nil {
-			s.respondInternalError(w, r, "INSERT user failed unexpectedly", err)
+			s.respondWithInternalError(w, r, logger.WithField("error",
+				fmt.Errorf("INSERT user failed unexpectedly: %v", err)))
 			return
 		}
 		lastId, err := result.LastInsertId()
 		if err != nil {
-			s.respondInternalError(w, r, "LastInsertId failed", err)
+			s.respondWithInternalError(w, r,
+				logger.WithField("error", fmt.Errorf("LastInsertId failed: %v", err)))
 			return
 		}
 		responce := Responce{lastId}

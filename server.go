@@ -35,7 +35,7 @@ func NewServer(db *sql.DB, logger *logrus.Logger, isTesting bool) *Server {
 	return s
 }
 
-func (s *Server) getRequestLogger(r *http.Request) *logrus.Entry {
+func (s *Server) getLogger(r *http.Request) *logrus.Entry {
 	return s.Logger.WithFields(logrus.Fields{
 		"url":    r.URL,
 		"method": r.Method,
@@ -49,15 +49,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-// respond send respond with json data and log if there is any error whyle encoding
+// respond sends respond with json data and log if there is any error whyle encoding.
 func (s *Server) respond(w http.ResponseWriter, r *http.Request, data interface{}, status int) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
 	if data != nil {
 		err := json.NewEncoder(w).Encode(data)
 		if err != nil {
-			s.Logger.WithFields(logrus.Fields{
-				"url":   r.URL,
+			s.getLogger(r).WithFields(logrus.Fields{
 				"data":  data,
 				"error": err,
 			}).Error("json encode error while responding")
@@ -65,33 +64,31 @@ func (s *Server) respond(w http.ResponseWriter, r *http.Request, data interface{
 	}
 }
 
-// decode unmarshal json value from request body and respond with error if there is formating issues
+// decode unmarshal json value from request body and respond with error if there is formating issues.
 func (s *Server) decode(w http.ResponseWriter, r *http.Request, value interface{}) error {
 	err := json.NewDecoder(r.Body).Decode(value)
 	if err != nil {
-		s.respondError(w, r, "json decoding error", err)
+		s.respondWithError(w, r, s.getLogger(r).WithField("error", err), "json decoding error")
 	}
 	return err
 }
 
-// respondError makes json respond with "error" field and specified msg and log it
-//
-// Also it set status code to http.StatusInternalServerError
-func (s *Server) respondError(w http.ResponseWriter, r *http.Request, msg string, err error) {
-	logger := s.getRequestLogger(r)
-	logger.WithField("error", err).Debug("Server responded with error")
+// respondWithError responds with "error" field and specified msg and log it
+// Also it sets status code to http.StatusInternalServerError
+func (s *Server) respondWithError(w http.ResponseWriter, r *http.Request, logger *logrus.Entry, msg string) {
+	if logger == nil {
+		logger = s.getLogger(r)
+	}
+	logger.WithField("respond_msg", msg).Debug("Server responded with error")
 
-	msgValue := map[string]string{"error": msg}
-	s.respond(w, r, msgValue, http.StatusInternalServerError)
+	type Responce struct {
+		Error string `json:error`
+	}
+	s.respond(w, r, Responce{msg}, http.StatusInternalServerError)
 }
 
-// respondInternalError makes json respond with "error" field with default msg but log spicified msg
-//
-// Also it set status code to http.StatusInternalServerError
-func (s *Server) respondInternalError(w http.ResponseWriter, r *http.Request, msg string, err error) {
-	logger := s.getRequestLogger(r)
-	logger.WithField("error", err).Error("Server responded with internal error")
-
-	msgValue := map[string]string{"error": "Internal error"}
-	s.respond(w, r, msgValue, http.StatusInternalServerError)
+// respondWithInternalError works as respondWithError, but it has predifined msg.
+// Its function used for hiding from client what kind of error happened.
+func (s *Server) respondWithInternalError(w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
+	s.respondWithError(w, r, logger, "internal error")
 }
