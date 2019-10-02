@@ -25,23 +25,17 @@ func (s *Server) handleUserAdd() http.HandlerFunc {
 			return
 		}
 		logger := s.getLogger(r).WithField("username", request.Username)
-		if isSameUser, _ := s.DB.IsUserExists(request.Username); isSameUser {
+		if isSameUser, _ := s.Storage.IsUserExists(request.Username); isSameUser {
 			s.respondWithError(w, r, logger, "User with this username is already added")
 			return
 		}
-		result, err := s.DB.AddUser(request.Username)
+		id, err := s.Storage.AddUser(request.Username)
 		if err != nil {
 			s.respondWithInternalError(w, r, logger.WithField("error",
-				fmt.Errorf("INSERT user failed unexpectedly: %v", err)))
+				fmt.Errorf("AddUser failed unexpectedly: %v", err)))
 			return
 		}
-		lastId, err := result.LastInsertId()
-		if err != nil {
-			s.respondWithInternalError(w, r,
-				logger.WithField("error", fmt.Errorf("LastInsertId failed: %v", err)))
-			return
-		}
-		responce := Responce{lastId}
+		responce := Responce{id}
 		s.respond(w, r, responce, http.StatusOK)
 	}
 }

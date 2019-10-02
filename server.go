@@ -1,28 +1,29 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
+
+	"github.com/Darkclainer/avito_exercise/storage"
 )
 
 type Server struct {
 	router    *mux.Router
 	Logger    *logrus.Logger
-	DB        ServerDB
+	Storage   storage.Storage
 	validate  *validator.Validate
 	isTesting bool
 }
 
-func NewServer(db *sql.DB, logger *logrus.Logger, isTesting bool) *Server {
+func NewServer(storageHandler storage.Storage, logger *logrus.Logger, isTesting bool) *Server {
 	s := &Server{
 		router:    mux.NewRouter(),
 		Logger:    logger,
-		DB:        ServerDB{db},
+		Storage:   storageHandler,
 		isTesting: isTesting,
 	}
 	if logger == nil {

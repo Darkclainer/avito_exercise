@@ -6,6 +6,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
+
+	"github.com/Darkclainer/avito_exercise/storage"
 )
 
 var schema = `
@@ -27,7 +29,7 @@ func main() {
 	if _, err := db.Exec(schema); err != nil {
 		logger.Fatal("Failed to exec schema: ", err)
 	}
-	server := NewServer(db, logger, false)
+	server := NewServer(storage.SqlStorage{db}, logger, false)
 
 	err = http.ListenAndServe(":9090", server)
 	if err != nil {
