@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Darkclainer/avito_exercise/mocks"
 )
 
 func TestHandleCreateChat(t *testing.T) {
@@ -19,7 +19,7 @@ func TestHandleCreateChat(t *testing.T) {
 		ExpectedStatusCode int
 		ExpectedErrorMsg   string
 		MockReturnId       int64
-		SetupMock          func(mock sqlmock.Sqlmock, testCase *TestCase)
+		SetupStorage       func(mock *mocks.Storage, testCase *TestCase)
 	}
 
 	testCases := []*TestCase{
@@ -28,15 +28,10 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat_1", "users": [1]}`,
 			ExpectedStatusCode: http.StatusOK,
 			MockReturnId:       2,
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
-				rows := sqlmock.NewRows([]string{"id"}).AddRow(1)
-				mock.ExpectQuery("SELECT id FROM users WHERE id IN (1)").WillReturnRows(rows)
-				mock.ExpectExec("INSERT INTO chats(name, created_at)").
-					WithArgs("chat_1", MatchTime{Start: time.Now()}).
-					WillReturnResult(sqlmock.NewResult(testCase.MockReturnId, 0))
-				mock.ExpectExec("INSERT INTO users_chats (user_id, chat_id) VALUES").
-					WithArgs(1, 2).
-					WillReturnResult(sqlmock.NewResult(1, 0))
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+				mock.On("IsChatExists", "chat_1").Return(false, nil)
+				mock.On("AreUsersExistByIds", []int64{1}).Return(true, nil)
+				mock.On("AddChat", "chat_1", []int64{1}).Return(testCase.MockReturnId)
 			},
 		},
 		&TestCase{
@@ -44,21 +39,10 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat_1", "users": [1, 2, 3]}`,
 			ExpectedStatusCode: http.StatusOK,
 			MockReturnId:       4,
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
-				rows := sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2).AddRow(3)
-				mock.ExpectQuery("SELECT id FROM users WHERE id IN (1, 2, 3)").WillReturnRows(rows)
-				mock.ExpectExec("INSERT INTO chats(name, created_at)").
-					WithArgs("chat_1", MatchTime{Start: time.Now()}).
-					WillReturnResult(sqlmock.NewResult(testCase.MockReturnId, 0))
-				mock.ExpectExec("INSERT INTO users_chats (user_id, chat_id) VALUES").
-					WithArgs(1, 4).
-					WillReturnResult(sqlmock.NewResult(1, 0))
-				mock.ExpectExec("INSERT INTO users_chats (user_id, chat_id) VALUES").
-					WithArgs(2, 4).
-					WillReturnResult(sqlmock.NewResult(1, 0))
-				mock.ExpectExec("INSERT INTO users_chats (user_id, chat_id) VALUES").
-					WithArgs(3, 4).
-					WillReturnResult(sqlmock.NewResult(1, 0))
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+				mock.On("IsChatExists", "chat_1").Return(false, nil)
+				mock.On("AreUsersExistByIds", []int64{1, 2, 3}).Return(true, nil)
+				mock.On("AddChat", "chat_1", []int64{1, 2, 3}).Return(testCase.MockReturnId)
 			},
 		},
 		&TestCase{
@@ -66,9 +50,9 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat_1", "users": [1, 123]}`,
 			ExpectedErrorMsg:   "nonexistent user",
 			ExpectedStatusCode: http.StatusInternalServerError,
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
-				rows := sqlmock.NewRows([]string{"id"}).AddRow(1)
-				mock.ExpectQuery("SELECT id FROM users WHERE id IN (1, 123)").WillReturnRows(rows)
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+				mock.On("IsChatExists", "chat_1").Return(false, nil)
+				mock.On("AreUsersExistByIds", []int64{1, 123}).Return(false, nil)
 			},
 		},
 		&TestCase{
@@ -76,11 +60,8 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat_1", "users": [1, 2]}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "chat with the same name is already exists",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
-				rows := sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2)
-				mock.ExpectQuery("SELECT id FROM users WHERE id IN (1, 2, 3)").WillReturnRows(rows)
-				rows = sqlmock.NewRows([]string{"name"}).AddRow("chat_1")
-				mock.ExpectQuery("SELECT name FROM chats WHERE name").WillReturnRows(rows)
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+				mock.On("IsChatExists", "chat_1").Return(true, nil)
 			},
 		},
 		&TestCase{
@@ -88,7 +69,7 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat"}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 		&TestCase{
@@ -96,7 +77,7 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"users": [1, 2]}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 		&TestCase{
@@ -104,7 +85,15 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat", "users": []}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+			},
+		},
+		&TestCase{
+			TestName:           "Query with duplicated users id",
+			RequestBody:        `{"name": "chat", "users": [2, 1, 1, 3]}`,
+			ExpectedStatusCode: http.StatusInternalServerError,
+			ExpectedErrorMsg:   "invalid input",
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 		&TestCase{
@@ -112,15 +101,15 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "12chat", "users": [1, 2]}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 		&TestCase{
 			TestName:           "Query with invalid user id type",
 			RequestBody:        `{"name": "chat", "users": [1, "sdf"]}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			ExpectedErrorMsg:   "json decoding error",
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 		&TestCase{
@@ -128,7 +117,7 @@ func TestHandleCreateChat(t *testing.T) {
 			RequestBody:        `{"name": "chat", "users": [1, -1]}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
-			SetupMock: func(mock sqlmock.Sqlmock, testCase *TestCase) {
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 			},
 		},
 	}
@@ -140,12 +129,8 @@ func TestHandleCreateChat(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.TestName, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			if err != nil {
-				t.Fatal("Can not create stub database connection: ", err)
-			}
-			defer db.Close()
-			server.DB = ServerDB{db}
+			mockStorage := &mocks.Storage{}
+			server.Storage = mockStorage
 
 			requestData := strings.NewReader(testCase.RequestBody)
 			request, err := http.NewRequest(http.MethodPost, "/chats/add", requestData)
@@ -154,12 +139,12 @@ func TestHandleCreateChat(t *testing.T) {
 			}
 			recorder := httptest.NewRecorder()
 
-			testCase.SetupMock(mock, testCase)
+			testCase.SetupStorage(mockStorage, testCase)
 
 			handler := server.handleChatAdd()
 			handler.ServeHTTP(recorder, request)
 
-			assert.NoError(t, mock.ExpectationsWereMet())
+			mockStorage.AssertExpectations(t)
 			assert.Equal(t, testCase.ExpectedStatusCode, recorder.Code)
 
 			var responce Responce

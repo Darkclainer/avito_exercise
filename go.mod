@@ -3,6 +3,7 @@ module github.com/Darkclainer/avito_exercise
 go 1.12
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/go-playground/locales v0.12.1 // indirect
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/gorilla/mux v1.7.3

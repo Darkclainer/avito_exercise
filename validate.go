@@ -9,6 +9,7 @@ func NewValidate() *validator.Validate {
 	validate := validator.New()
 	validate.RegisterValidation("identificator", validateRegexp(`^[a-zA-Z]\w*$`))
 	validate.RegisterAlias("username", "identificator,min=1,max=32")
+	validate.RegisterAlias("chatname", "identificator,min=1,max=32")
 	return validate
 }
 
