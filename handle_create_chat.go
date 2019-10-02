@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"fmt"
+	"fmt"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -32,22 +32,13 @@ func (s *Server) handleChatAdd() http.HandlerFunc {
 			s.respondWithError(w, r, logger, "nonexistent user")
 			return
 		}
-
-		/*
-			result, err := s.DB.AddUser(request.Username)
-			if err != nil {
-				s.respondWithInternalError(w, r, logger.WithField("error",
-					fmt.Errorf("INSERT user failed unexpectedly: %v", err)))
-				return
-			}
-			lastId, err := result.LastInsertId()
-			if err != nil {
-				s.respondWithInternalError(w, r,
-					logger.WithField("error", fmt.Errorf("LastInsertId failed: %v", err)))
-				return
-			}
-			responce := Responce{lastId}
-			s.respond(w, r, responce, http.StatusOK)
-		*/
+		chatId, err := s.Storage.AddChat(request.Name, request.UserIds)
+		if err != nil {
+			s.respondWithInternalError(w, r, logger.WithField("error",
+				fmt.Errorf("AddChat failed: %s", err)))
+			return
+		}
+		responce := Responce{chatId}
+		s.respond(w, r, responce, http.StatusOK)
 	}
 }

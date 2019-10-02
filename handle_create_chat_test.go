@@ -31,7 +31,7 @@ func TestHandleCreateChat(t *testing.T) {
 			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 				mock.On("IsChatExists", "chat_1").Return(false, nil)
 				mock.On("AreUsersExistByIds", []int64{1}).Return(true, nil)
-				mock.On("AddChat", "chat_1", []int64{1}).Return(testCase.MockReturnId)
+				mock.On("AddChat", "chat_1", []int64{1}).Return(testCase.MockReturnId, nil)
 			},
 		},
 		&TestCase{
@@ -42,7 +42,7 @@ func TestHandleCreateChat(t *testing.T) {
 			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
 				mock.On("IsChatExists", "chat_1").Return(false, nil)
 				mock.On("AreUsersExistByIds", []int64{1, 2, 3}).Return(true, nil)
-				mock.On("AddChat", "chat_1", []int64{1, 2, 3}).Return(testCase.MockReturnId)
+				mock.On("AddChat", "chat_1", []int64{1, 2, 3}).Return(testCase.MockReturnId, nil)
 			},
 		},
 		&TestCase{

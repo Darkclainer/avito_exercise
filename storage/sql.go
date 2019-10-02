@@ -25,7 +25,6 @@ func (db SqlStorage) IsUserExists(username string) (bool, error) {
 func (db SqlStorage) AreUsersExistByIds(userIds []int64) (bool, error) {
 	inStmtPart := strings.Repeat("?, ", len(userIds))
 	sqlStmt := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE id IN (%s)", inStmtPart[:len(inStmtPart)-2])
-	fmt.Println("STATEMENT: ", sqlStmt)
 	args := make([]interface{}, len(userIds))
 	for i, id := range userIds {
 		args[i] = id
@@ -59,6 +58,29 @@ func (db SqlStorage) IsChatExists(chatname string) (bool, error) {
 	}
 	return true, nil
 }
-func (db SqlStorage) AddChat(chatname string, userIds []int64) (int64, error) {
-	return int64(0), fmt.Errorf("Not implemented!")
+func (db SqlStorage) AddChat(chatName string, userIds []int64) (chatId int64, err error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		tx.Commit()
+	}()
+	result, err := db.Exec("INSERT INTO chats(name, created_at) VALUES(?, ?)", chatName, time.Now())
+	if err != nil {
+		return
+	}
+	if chatId, err = result.LastInsertId(); err != nil {
+		return
+	}
+	for _, userId := range userIds {
+		if _, err = db.Exec("INSERT INTO users_chats(user_id, chat_id) VALUES(?, ?)", chatId, userId); err != nil {
+			return
+		}
+	}
+	return
 }
