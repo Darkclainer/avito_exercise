@@ -16,6 +16,22 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT NOT NULL UNIQUE,
     created_at DATETIME NOT NULL
 );
+CREATE TABLE IF NOT EXISTS chats (
+    id INTEGER NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users_chats (
+    user_id INTEGER NOT NULL,
+    chat_id INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+    FOREIGN KEY (chat_id) REFERENCES chats (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+    PRIMARY KEY (user_id, chat_id)
+);
 `
 
 func main() {
