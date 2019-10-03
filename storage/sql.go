@@ -11,6 +11,36 @@ type SqlStorage struct {
 	*sql.DB
 }
 
+func (db SqlStorage) Setup() error {
+	schema := `
+		CREATE TABLE IF NOT EXISTS users (
+		    id INTEGER NOT NULL PRIMARY KEY,
+		    username TEXT NOT NULL UNIQUE,
+		    created_at DATETIME NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS chats (
+		    id INTEGER NOT NULL PRIMARY KEY,
+		    name TEXT NOT NULL UNIQUE,
+		    created_at DATETIME NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS users_chats (
+		    user_id INTEGER NOT NULL,
+		    chat_id INTEGER NOT NULL,
+		    FOREIGN KEY (user_id) REFERENCES users (id)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE,
+		    FOREIGN KEY (chat_id) REFERENCES chats (id)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE,
+		    PRIMARY KEY (user_id, chat_id)
+		);
+	`
+	if _, err := db.Exec(schema); err != nil {
+		return fmt.Errorf("Setup failed: %s", err)
+	}
+	return nil
+}
+
 func (db SqlStorage) IsUserExists(username string) (bool, error) {
 	sqlStmt := `SELECT username FROM users WHERE username = ?`
 	err := db.QueryRow(sqlStmt, username).Scan(&username)

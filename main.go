@@ -10,30 +10,6 @@ import (
 	"github.com/Darkclainer/avito_exercise/storage"
 )
 
-var schema = `
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER NOT NULL PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS chats (
-    id INTEGER NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS users_chats (
-    user_id INTEGER NOT NULL,
-    chat_id INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users (id)
-	ON UPDATE CASCADE
-	ON DELETE CASCADE,
-    FOREIGN KEY (chat_id) REFERENCES chats (id)
-	ON UPDATE CASCADE
-	ON DELETE CASCADE,
-    PRIMARY KEY (user_id, chat_id)
-);
-`
-
 func main() {
 	logger := logrus.New()
 	db, err := sql.Open("sqlite3", "test.db")
@@ -42,10 +18,9 @@ func main() {
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(schema); err != nil {
-		logger.Fatal("Failed to exec schema: ", err)
-	}
-	server := NewServer(storage.SqlStorage{db}, logger, false)
+	dbStorage := storage.SqlStorage{db}
+	dbStorage.Setup()
+	server := NewServer(dbStorage, logger, false)
 
 	err = http.ListenAndServe(":9090", server)
 	if err != nil {
