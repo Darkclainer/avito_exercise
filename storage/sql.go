@@ -108,7 +108,7 @@ func (db SqlStorage) AddChat(chatName string, userIds []int64) (chatId int64, er
 		return
 	}
 	for _, userId := range userIds {
-		if _, err = db.Exec("INSERT INTO users_chats(user_id, chat_id) VALUES(?, ?)", chatId, userId); err != nil {
+		if _, err = db.Exec("INSERT INTO users_chats(user_id, chat_id) VALUES(?, ?)", userId, chatId); err != nil {
 			return
 		}
 	}
