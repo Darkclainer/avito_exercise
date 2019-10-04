@@ -34,6 +34,19 @@ func (db SqlStorage) Setup() error {
 			ON DELETE CASCADE,
 		    PRIMARY KEY (user_id, chat_id)
 		);
+		CREATE TABLE IF NOT EXISTS messages (
+		    id INTEGER NOT NULL PRIMARY KEY,
+		    chat_id INTEGER NOT NULL,
+		    author_id INTEGER NOT NULL,
+		    text TEXT,
+		    created_at DATETIME NOT NULL,
+		    FOREIGN KEY (chat_id) REFERENCES chats (id)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE,
+		    FOREIGN KEY (author_id) REFERENCES users (id)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE
+		);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("Setup failed: %s", err)
