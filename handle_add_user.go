@@ -5,19 +5,19 @@ import (
 	"net/http"
 )
 
-/* handleUserAdd return handle that andd new user on POST method
+/* handleAddUser return handle that andd new user on POST method
 
 Request body must be json dictionary with field "username" and value string.
 Valid username must start with ASCII letter and continue with letter, number or underscore.
 Maximum length is 32 characters.
 Handler return id of new user or error msg.
 */
-func (s *Server) handleUserAdd() http.HandlerFunc {
+func (s *Server) handleAddUser() http.HandlerFunc {
 	type Request struct {
 		Username string `json:"username" validate:"username"`
 	}
 	type Responce struct {
-		Id int64 `json:id`
+		Id int64 `json:"id"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request Request

@@ -12,7 +12,7 @@ import (
 	"github.com/Darkclainer/avito_exercise/mocks"
 )
 
-func TestHandleUserAdd(t *testing.T) {
+func TestHandleAddUser(t *testing.T) {
 	type TestCase struct {
 		TestName           string
 		RequestBody        string
@@ -87,7 +87,7 @@ func TestHandleUserAdd(t *testing.T) {
 
 			testCase.SetupStorage(mockStorage, testCase)
 
-			handler := server.handleUserAdd()
+			handler := server.handleAddUser()
 			handler.ServeHTTP(recorder, request)
 
 			mockStorage.AssertExpectations(t)

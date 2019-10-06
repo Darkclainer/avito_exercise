@@ -12,7 +12,7 @@ import (
 	"github.com/Darkclainer/avito_exercise/mocks"
 )
 
-func TestHandleCreateChat(t *testing.T) {
+func TestHandleAddChat(t *testing.T) {
 	type TestCase struct {
 		TestName           string
 		RequestBody        string
@@ -141,7 +141,7 @@ func TestHandleCreateChat(t *testing.T) {
 
 			testCase.SetupStorage(mockStorage, testCase)
 
-			handler := server.handleChatAdd()
+			handler := server.handleAddChat()
 			handler.ServeHTTP(recorder, request)
 
 			mockStorage.AssertExpectations(t)

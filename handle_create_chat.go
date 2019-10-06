@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *Server) handleChatAdd() http.HandlerFunc {
+func (s *Server) handleAddChat() http.HandlerFunc {
 	type Request struct {
 		Name    string  `json:"name" validate:"chatname"`
 		UserIds []int64 `json:"users" validate:"gt=0,unique,dive,gte=0,required"`
