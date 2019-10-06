@@ -13,7 +13,7 @@ func (s *Server) handleAddChat() http.HandlerFunc {
 		UserIds []int64 `json:"users" validate:"gt=0,unique,dive,gte=0,required"`
 	}
 	type Responce struct {
-		Id int64 `json:id`
+		Id int64 `json:"id"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request Request

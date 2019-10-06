@@ -72,8 +72,8 @@ func TestHandleAddMessage(t *testing.T) {
 	server := NewServer(nil, nil, true)
 
 	type Responce struct {
-		Id    int64  `json:id`
-		Error string `json:error`
+		Id    int64  `json:"id"`
+		Error string `json:"error"`
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.TestName, func(t *testing.T) {

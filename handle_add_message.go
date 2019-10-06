@@ -13,7 +13,7 @@ func (s *Server) handleAddMessage() http.HandlerFunc {
 		Text     string `json:"text"`
 	}
 	type Responce struct {
-		Id int64 `json:id`
+		Id int64 `json:"id"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request Request
