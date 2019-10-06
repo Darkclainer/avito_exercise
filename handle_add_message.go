@@ -10,7 +10,7 @@ func (s *Server) handleAddMessage() http.HandlerFunc {
 	type Request struct {
 		ChatId   int64  `json:"chat" validate:"required,gte=0"`
 		AuthorId int64  `json:"author" validate:"required,gte=0"`
-		Text     string `json:"text" validate:"required"`
+		Text     string `json:"text"`
 	}
 	type Responce struct {
 		Id int64 `json:id`

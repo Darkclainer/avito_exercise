@@ -34,6 +34,16 @@ func TestHandleAddMessage(t *testing.T) {
 			},
 		},
 		&TestCase{
+			TestName:           "Add message with empty text",
+			RequestBody:        `{"chat": 10, "author": 20, "text": ""}`,
+			ExpectedStatusCode: http.StatusOK,
+			MockReturnId:       50,
+			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
+				mock.On("IsUserInChat", int64(20), int64(10)).Return(true, nil)
+				mock.On("AddMessage", int64(20), int64(10), "").Return(testCase.MockReturnId, nil)
+			},
+		},
+		&TestCase{
 			TestName:           "Add message to nonexistent chat",
 			RequestBody:        `{"chat": 10, "author": 20, "text": "Hello, World!"}`,
 			ExpectedErrorMsg:   "user is not in the chat",
@@ -53,14 +63,6 @@ func TestHandleAddMessage(t *testing.T) {
 		&TestCase{
 			TestName:           "Add message without author",
 			RequestBody:        `{"chat": 10, "text": "Hello, World!"}`,
-			ExpectedStatusCode: http.StatusInternalServerError,
-			ExpectedErrorMsg:   "invalid input",
-			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
-			},
-		},
-		&TestCase{
-			TestName:           "Add message without message",
-			RequestBody:        `{"chat": 10, "author": 20}`,
 			ExpectedStatusCode: http.StatusInternalServerError,
 			ExpectedErrorMsg:   "invalid input",
 			SetupStorage: func(mock *mocks.Storage, testCase *TestCase) {
