@@ -76,6 +76,7 @@ func TestSetup(t *testing.T) {
 		"users",
 		"chats",
 		"users_chats",
+		"messages",
 	}
 	tablesPresented := make([]string, 0, len(tablesShouldExist))
 	for rows.Next() {
@@ -288,6 +289,123 @@ func TestAddChat(t *testing.T) {
 			err = sqlStorage.QueryRow(`SELECT COUNT(*) FROM users_chats WHERE chat_id = ?`, chatId).Scan(&numberOfUsers)
 			assert.NoError(t, err)
 			assert.Equal(t, len(testCase.UserIds), numberOfUsers)
+		})
+	}
+}
+func TestIsUserInChat(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"users_chats", "users", "chats"})
+	defer teardown()
+	userNotInChat, err := sqlStorage.AddUser("user_2")
+	if err != nil {
+		t.Fatal("Can not add user: ", err)
+	}
+	userInChat, err := sqlStorage.AddUser("user_1")
+	if err != nil {
+		t.Fatal("Can not add user: ", err)
+	}
+	chatId, err := sqlStorage.AddChat("chat_1", []int64{userInChat})
+	if err != nil {
+		t.Fatal("Can not create chat: ", err)
+	}
+
+	isInChat, err := sqlStorage.IsUserInChat(userInChat, chatId)
+	assert.NoError(t, err)
+	assert.True(t, isInChat)
+
+	isInChat, err = sqlStorage.IsUserInChat(userNotInChat, chatId)
+	assert.NoError(t, err)
+	assert.False(t, isInChat)
+}
+func TestAddMessage(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"messages", "users_chats", "users", "chats"})
+	defer teardown()
+	//add users
+	userNotInChat, err := sqlStorage.AddUser("user_2")
+	if err != nil {
+		t.Fatal("Can not add user: ", err)
+	}
+	userInChat, err := sqlStorage.AddUser("user_1")
+	if err != nil {
+		t.Fatal("Can not add user: ", err)
+	}
+	chatId, err := sqlStorage.AddChat("chat_1", []int64{userInChat})
+	if err != nil {
+		t.Fatal("Can not create chat: ", err)
+	}
+	type TestCase struct {
+		TestName   string
+		ChatId     int64
+		AuthorId   int64
+		Text       string
+		ShouldFail bool
+	}
+	testCases := []TestCase{
+		TestCase{
+			TestName: "Add message",
+			ChatId:   chatId,
+			AuthorId: userInChat,
+			Text:     "Hello, World!",
+		},
+		TestCase{
+			TestName:   "User not in chat",
+			ChatId:     chatId,
+			AuthorId:   userNotInChat,
+			Text:       "Hello, Hijackers!",
+			ShouldFail: true,
+		},
+		TestCase{
+			TestName:   "Nonexistent user",
+			ChatId:     chatId,
+			AuthorId:   1203,
+			Text:       "I'm not exist",
+			ShouldFail: true,
+		},
+		TestCase{
+			TestName:   "Nonexistent chat",
+			ChatId:     2313,
+			AuthorId:   userInChat,
+			Text:       "Helloo",
+			ShouldFail: true,
+		},
+	}
+	messagesAlreadyCreated := 0
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.TestName, func(t *testing.T) {
+			timeBeforeInserting := time.Now()
+			messageId, err := sqlStorage.AddMessage(testCase.AuthorId, testCase.ChatId, testCase.Text)
+			if testCase.ShouldFail {
+				assert.Error(t, err)
+				var messagesExist int
+				err = sqlStorage.QueryRow(`SELECT COUNT(*) FROM messages`).Scan(&messagesExist)
+				assert.NoError(t, err)
+				assert.Equal(t, messagesAlreadyCreated, messagesExist)
+				return
+			} else {
+				if err != nil {
+					t.Error("AddMessage failed: ", err)
+					return
+				}
+			}
+			messagesAlreadyCreated++
+
+			var chatId, authorId int64
+			var text string
+			var createdAt time.Time
+			err = sqlStorage.QueryRow("SELECT chat_id, author_id, text, created_at FROM messages WHERE id = ?", messageId).
+				Scan(&chatId, &authorId, &text, &createdAt)
+			if err != nil {
+				t.Fatal("Select message failed: ", err)
+			}
+			assert.Equal(t, testCase.ChatId, chatId)
+			assert.Equal(t, testCase.AuthorId, authorId)
+			assert.Equal(t, testCase.Text, text)
+			assert.False(t, createdAt.Before(timeBeforeInserting) || createdAt.After(time.Now()))
+
+			var messagesExist int
+			err = sqlStorage.QueryRow(`SELECT COUNT(*) FROM messages`).Scan(&messagesExist)
+			assert.NoError(t, err)
+			assert.Equal(t, messagesAlreadyCreated, messagesExist)
 		})
 	}
 }

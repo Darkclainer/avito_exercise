@@ -57,13 +57,7 @@ func (db SqlStorage) Setup() error {
 func (db SqlStorage) IsUserExists(username string) (bool, error) {
 	sqlStmt := `SELECT username FROM users WHERE username = ?`
 	err := db.QueryRow(sqlStmt, username).Scan(&username)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return false, err
-		}
-		return false, nil
-	}
-	return true, nil
+	return isExistByError(err)
 }
 func (db SqlStorage) AreUsersExistByIds(userIds []int64) (bool, error) {
 	inStmtPart := strings.Repeat("?, ", len(userIds))
@@ -93,13 +87,7 @@ func (db SqlStorage) AddUser(username string) (int64, error) {
 func (db SqlStorage) IsChatExists(chatname string) (bool, error) {
 	sqlStmt := `SELECT name FROM chats WHERE name = ?`
 	err := db.QueryRow(sqlStmt, chatname).Scan(&chatname)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return false, err
-		}
-		return false, nil
-	}
-	return true, nil
+	return isExistByError(err)
 }
 func (db SqlStorage) AddChat(chatName string, userIds []int64) (chatId int64, err error) {
 	tx, err := db.Begin()
@@ -126,4 +114,34 @@ func (db SqlStorage) AddChat(chatName string, userIds []int64) (chatId int64, er
 		}
 	}
 	return
+}
+func (db SqlStorage) IsUserInChat(userId int64, chatId int64) (bool, error) {
+	stmt := `SELECT user_id FROM users_chats WHERE user_id = ? AND chat_id = ?`
+	err := db.QueryRow(stmt, userId, chatId).Scan(&userId)
+	return isExistByError(err)
+}
+func (db SqlStorage) AddMessage(authorId int64, chatId int64, text string) (int64, error) {
+	isUserInChat, err := db.IsUserInChat(authorId, chatId)
+	if err != nil {
+		return 0, err
+	}
+	if !isUserInChat {
+		return 0, fmt.Errorf("user is not in chat, or either of them doesn't exist")
+	}
+	insertStatement := `INSERT INTO messages(chat_id, author_id, text, created_at) VALUES(?, ?, ?, ?)`
+	result, err := db.Exec(insertStatement, chatId, authorId, text, time.Now())
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func isExistByError(err error) (bool, error) {
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
