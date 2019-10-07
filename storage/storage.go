@@ -18,8 +18,8 @@ type Storage interface {
 }
 
 type Chat struct {
-	Id        int64
-	Name      string
-	CreatedAt time.Time
-	UserIds   []int64
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UserIds   []int64   `json:"users"`
 }
