@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -84,11 +85,85 @@ func (db SqlStorage) AddUser(username string) (int64, error) {
 	return result.LastInsertId()
 }
 
+func (db SqlStorage) GetUserChats(userId int64) ([]*Chat, error) {
+	stmt := `SELECT chats.id, chats.name, chats.created_at FROM users_chats 
+		INNER JOIN chats ON users_chats.chat_id = chats.id 
+		WHERE users_chats.user_id = ?`
+	rows, err := db.Query(stmt, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	chats := make([]*Chat, 0)
+	for rows.Next() {
+		chat := &Chat{}
+		err := rows.Scan(&chat.Id, &chat.Name, &chat.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		userIds, err := db.getUserIdsFromChat(chat.Id)
+		if err != nil {
+			return nil, err
+		}
+		chat.UserIds = userIds
+		chats = append(chats, chat)
+	}
+	db.sortChatsByLastMessage(chats)
+	return chats, nil
+}
+func (db SqlStorage) getUserIdsFromChat(chatId int64) ([]int64, error) {
+	rows, err := db.Query("SELECT user_id FROM users_chats WHERE chat_id = ?", chatId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	userIds := make([]int64, 0)
+	for rows.Next() {
+		var userId int64
+		err := rows.Scan(&userId)
+		if err != nil {
+			return nil, err
+		}
+		userIds = append(userIds, userId)
+	}
+	return userIds, nil
+}
+func (db SqlStorage) sortChatsByLastMessage(chats []*Chat) {
+	chatDate := make(map[int64]time.Time, len(chats))
+	type Result struct {
+		ChatId   int64
+		LastTime time.Time
+	}
+	ch := make(chan Result)
+	for _, chat := range chats {
+		go func(chat *Chat) {
+			var lastMessageTime time.Time
+			err := db.QueryRow("SELECT created_at FROM messages WHERE chat_id = ? ORDER BY id DESC", chat.Id).Scan(&lastMessageTime)
+			if err != nil {
+				// Actually if any error ocur - we send chat.created_at. This may be not the best tactic
+				ch <- Result{chat.Id, chat.CreatedAt}
+				return
+			}
+			ch <- Result{chat.Id, lastMessageTime}
+		}(chat)
+	}
+	for i := 0; i < len(chats); i++ {
+		result := <-ch
+		chatDate[result.ChatId] = result.LastTime
+	}
+	sort.Slice(chats, func(i, j int) bool {
+		return chatDate[chats[i].Id].Before(chatDate[chats[j].Id])
+	})
+
+}
+
 func (db SqlStorage) IsChatExists(chatname string) (bool, error) {
 	sqlStmt := `SELECT name FROM chats WHERE name = ?`
 	err := db.QueryRow(sqlStmt, chatname).Scan(&chatname)
 	return isExistByError(err)
 }
+
 func (db SqlStorage) AddChat(chatName string, userIds []int64) (chatId int64, err error) {
 	tx, err := db.Begin()
 	if err != nil {

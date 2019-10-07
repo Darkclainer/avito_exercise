@@ -186,6 +186,138 @@ func TestAddUser(t *testing.T) {
 	assert.Equal(t, len(users), numberOfUsers, "Number of inserted users not equal to number of users expected to be inserted")
 
 }
+func TestGetUserChats(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"users_chats", "chats", "users"})
+	defer teardown()
+	_, err := sqlStorage.Exec(`INSERT INTO users(id, username, created_at) VALUES 
+		(1, "user1", "2019-01-01 10:00:00"),
+		(2, "user2", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert user failed: ", err)
+	}
+	chats := []*Chat{
+		&Chat{11, "chat1", time.Date(2019, time.January, 1, 10, 0, 0, 0, time.UTC), nil},
+		&Chat{12, "chat2", time.Date(2019, time.January, 1, 11, 0, 0, 0, time.UTC), nil},
+		&Chat{13, "chat3", time.Date(2019, time.January, 1, 12, 0, 0, 0, time.UTC), nil},
+		&Chat{14, "chat4", time.Date(2019, time.January, 1, 13, 0, 0, 0, time.UTC), nil},
+	}
+	for _, chat := range chats {
+		_, err := sqlStorage.Exec(`INSERT INTO chats(id, name, created_at) VALUES (?, ?, ?)`, chat.Id, chat.Name, chat.CreatedAt)
+		if err != nil {
+			t.Fatal("Insert chats failed: ", err)
+		}
+	}
+	_, err = sqlStorage.Exec(`INSERT INTO users_chats(user_id, chat_id) VALUES
+		(1, 11),
+		(1, 12),
+		(1, 14),
+		(2, 12),
+		(2, 13)`)
+	if err != nil {
+		t.Fatal("Insert users_chats failed: ", err)
+	}
+
+	assertChats := func(expected, actual []*Chat) {
+		assert.Equal(t, len(expected), len(actual))
+		for i, chat := range expected {
+			assert.Equal(t, chat.Id, actual[i].Id)
+			assert.Equal(t, chat.Name, actual[i].Name)
+			assert.Equal(t, chat.CreatedAt, actual[i].CreatedAt)
+		}
+
+	}
+	user1Chats, err := sqlStorage.GetUserChats(1)
+	assert.NoError(t, err)
+	assertChats([]*Chat{chats[0], chats[1], chats[3]}, user1Chats)
+
+	user2Chats, err := sqlStorage.GetUserChats(2)
+	assert.NoError(t, err)
+	assertChats([]*Chat{chats[1], chats[2]}, user2Chats)
+
+}
+func TestGetUserIdsFromChat(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"users_chats", "chats", "users"})
+	defer teardown()
+	_, err := sqlStorage.Exec(`INSERT INTO users(id, username, created_at) VALUES 
+		(1, "user1", "2019-01-01 10:00:00"),
+		(2, "user2", "2019-01-01 10:00:00"),
+		(3, "user3", "2019-01-01 10:00:00"),
+		(4, "user4", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert user failed: ", err)
+	}
+	_, err = sqlStorage.Exec(`INSERT INTO chats(id, name, created_at) VALUES 
+		(10, "chat1", "2019-01-01 10:00:00"),
+		(11, "chat2", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert chats failed: ", err)
+	}
+	_, err = sqlStorage.Exec(`INSERT INTO users_chats(user_id, chat_id) VALUES
+		(1, 10),
+		(2, 10),
+		(4, 10),
+		(3, 11),
+		(4, 11)`)
+	if err != nil {
+		t.Fatal("Insert users_chats failed: ", err)
+	}
+
+	userIds, err := sqlStorage.getUserIdsFromChat(10)
+	assert.NoError(t, err)
+	assert.Equal(t, []int64{1, 2, 4}, userIds)
+
+	userIds, err = sqlStorage.getUserIdsFromChat(11)
+	assert.NoError(t, err)
+	assert.Equal(t, []int64{3, 4}, userIds)
+
+}
+func TestSortChatsByLastMessage(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"messages", "chats", "users"})
+	defer teardown()
+	_, err := sqlStorage.Exec(`INSERT INTO users(id, username, created_at) VALUES (10, "user", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert user failed: ", err)
+	}
+	chats := []*Chat{
+		&Chat{5, "chat5", time.Date(2019, time.January, 1, 14, 0, 0, 0, time.UTC), nil},
+		&Chat{4, "chat4", time.Date(2019, time.January, 1, 13, 0, 0, 0, time.UTC), nil},
+		&Chat{3, "chat3", time.Date(2019, time.January, 1, 12, 0, 0, 0, time.UTC), nil},
+		&Chat{2, "chat2", time.Date(2019, time.January, 1, 11, 0, 0, 0, time.UTC), nil},
+		&Chat{1, "chat1", time.Date(2019, time.January, 1, 10, 0, 0, 0, time.UTC), nil},
+	}
+	for _, chat := range chats {
+		_, err := sqlStorage.Exec(`INSERT INTO chats(id, name, created_at) VALUES (?, ?, ?)`, chat.Id, chat.Name, chat.CreatedAt)
+		if err != nil {
+			t.Fatal("Insert chats failed: ", err)
+		}
+	}
+
+	testOrder := func(expected []int64) {
+		actualOrder := make([]int64, len(chats))
+		for i, chat := range chats {
+			actualOrder[i] = chat.Id
+		}
+		assert.Equal(t, expected, actualOrder)
+	}
+
+	sqlStorage.sortChatsByLastMessage(chats)
+	testOrder([]int64{1, 2, 3, 4, 5})
+
+	_, err = sqlStorage.Exec(`INSERT INTO messages(chat_id, author_id, text, created_at) VALUES(2, 10, "", "2019-01-01 16:00:00")`)
+	if err != nil {
+		t.Fatal("Insert message failed: ", err)
+	}
+	sqlStorage.sortChatsByLastMessage(chats)
+	testOrder([]int64{1, 3, 4, 5, 2})
+
+	_, err = sqlStorage.Exec(`INSERT INTO messages(chat_id, author_id, text, created_at) VALUES(1, 10, "", "2019-01-01 15:00:00")`)
+	if err != nil {
+		t.Fatal("Insert message failed: ", err)
+	}
+	sqlStorage.sortChatsByLastMessage(chats)
+	testOrder([]int64{3, 4, 5, 1, 2})
+
+}
 func TestIsChatExists(t *testing.T) {
 	sqlStorage, teardown := getSqlStorage(t, []string{"chats"})
 	defer teardown()
