@@ -15,6 +15,7 @@ type Storage interface {
 	IsUserInChat(userId int64, chatId int64) (bool, error)
 
 	AddMessage(chatId int64, authorId int64, text string) (int64, error)
+	GetMessagesFromChat(chatId int64) ([]*Message, error)
 }
 
 type Chat struct {
@@ -22,4 +23,12 @@ type Chat struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	UserIds   []int64   `json:"users"`
+}
+
+type Message struct {
+	Id        int64     `json:"id"`
+	ChatId    int64     `json:"chat"`
+	AuthorId  int64     `json:"author"`
+	Text      string    `json:"text"`
+	CreatedAt time.Time `json:"created_at"`
 }

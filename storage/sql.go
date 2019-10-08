@@ -210,6 +210,23 @@ func (db SqlStorage) AddMessage(authorId int64, chatId int64, text string) (int6
 	}
 	return result.LastInsertId()
 }
+func (db SqlStorage) GetMessagesFromChat(chatId int64) ([]*Message, error) {
+	rows, err := db.Query(`SELECT id, author_id, text, created_at FROM messages WHERE chat_id = ? ORDER BY created_at ASC`, chatId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	messages := make([]*Message, 0)
+	for rows.Next() {
+		message := &Message{ChatId: chatId}
+		err := rows.Scan(&message.Id, &message.AuthorId, &message.Text, &message.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+	return messages, nil
+}
 
 func isExistByError(err error) (bool, error) {
 	if err != nil {

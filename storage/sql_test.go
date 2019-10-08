@@ -541,3 +541,61 @@ func TestAddMessage(t *testing.T) {
 		})
 	}
 }
+func TestGetMessagesFromChat(t *testing.T) {
+	sqlStorage, teardown := getSqlStorage(t, []string{"messages", "chats", "users"})
+	defer teardown()
+	_, err := sqlStorage.Exec(`INSERT INTO users(id, username, created_at) VALUES
+		(1, "my_favorite", "2019-01-01 10:00:00"),
+		(2, "another_one", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert into users failed: ", err)
+	}
+	_, err = sqlStorage.Exec(`INSERT INTO chats(id, name, created_at) VALUES
+		(10, "chat_1", "2019-01-01 10:00:00"),
+		(11, "chat_2", "2019-01-01 10:00:00")`)
+	if err != nil {
+		t.Fatal("Insert into chats failed: ", err)
+	}
+	expectedMessages := []*Message{
+		&Message{
+			Id: 21, ChatId: 10, AuthorId: 1,
+			Text:      "Hello",
+			CreatedAt: time.Date(2019, time.January, 1, 10, 0, 0, 0, time.UTC),
+		},
+		&Message{
+			Id: 23, ChatId: 10, AuthorId: 1,
+			Text:      "I can travel in time",
+			CreatedAt: time.Date(2019, time.January, 1, 10, 0, 30, 0, time.UTC),
+		},
+		&Message{
+			Id: 22, ChatId: 10, AuthorId: 2,
+			Text:      "Hello, how are you?",
+			CreatedAt: time.Date(2019, time.January, 1, 10, 1, 0, 0, time.UTC),
+		},
+		&Message{
+			Id: 24, ChatId: 10, AuthorId: 2,
+			Text:      "Are you kidding?",
+			CreatedAt: time.Date(2019, time.January, 1, 10, 1, 30, 0, time.UTC),
+		},
+		&Message{
+			Id: 25, ChatId: 11, AuthorId: 1,
+			Text:      "Another chat",
+			CreatedAt: time.Date(2019, time.January, 1, 9, 0, 0, 0, time.UTC),
+		},
+	}
+	for _, message := range expectedMessages {
+		_, err := sqlStorage.Exec(`INSERT INTO messages(id, chat_id, author_id, text, created_at) VALUES(?, ?, ?, ?, ?)`,
+			message.Id, message.ChatId, message.AuthorId, message.Text, message.CreatedAt)
+		if err != nil {
+			t.Fatal("Insert into messages failed: ", err)
+		}
+	}
+	// last messages from another chat
+	expectedMessages = expectedMessages[:len(expectedMessages)-1]
+	actualMessages, err := sqlStorage.GetMessagesFromChat(10)
+	if err != nil {
+		t.Fatal("GetMessagesFromChat failed: ", err)
+	}
+	assert.Equal(t, expectedMessages, actualMessages)
+
+}
