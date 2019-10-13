@@ -28,6 +28,7 @@ func (s *Server) handleGetMessages() http.HandlerFunc {
 		if err != nil {
 			s.respondWithInternalError(w, r, logger.WithField("error",
 				fmt.Errorf("GetMessagesFromChat failed: %s", err)))
+			return
 		}
 		responce := Responce{messages}
 		s.respond(w, r, responce, http.StatusOK)

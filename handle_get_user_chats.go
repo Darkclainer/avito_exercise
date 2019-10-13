@@ -28,6 +28,7 @@ func (s *Server) handleGetUserChats() http.HandlerFunc {
 		if err != nil {
 			s.respondWithInternalError(w, r, logger.WithField("error",
 				fmt.Errorf("GetUserChats failed: %s", err)))
+			return
 		}
 		responce := Responce{chats}
 		s.respond(w, r, responce, http.StatusOK)
